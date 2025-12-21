@@ -2,65 +2,154 @@
 namespace App\Composition;
 
 use App\Models\Account;
+use Illuminate\Support\Facades\DB;
 
-class CompositeAccount implements AccountInterface
+class CompositionAccount implements AccountInterface
 {
     protected Account $model;
+
+    /** @var AccountInterface[] */
     protected array $children = [];
 
     public function __construct(Account $account)
     {
         $this->model = $account;
-        // يبني مصفوفة من الكائنات المغلفة للأبناء
-        foreach ($account->children as $childModel) {
-            $this->children[] = new LeafAccount($childModel);
-        }
-    }
 
-    public function withdraw(float $amount): void
+        // تأكد من تحميل العلاقة children
+        if (!$account->relationLoaded('children')) {
+            $account->load('children');
+        }
+
+        foreach ($account->children as $child) {
+            // تأكد من تحميل children للطفل أيضاً إذا كان مطلوباً
+            if (!$child->relationLoaded('children')) {
+                $child->load('children');
+            }
+
+            $this->children[] =
+                $child->children->isEmpty()
+                    ? new LeafAccount($child)
+                    : new CompositionAccount($child);
+        }
+    }    public function getId(): int
     {
-        $count = count($this->children) + 1; // الرئيسي + الأبناء
-        $share = $amount / $count;
-
-        // نتحقق أولًا أن كل حساب لديه رصيد كافٍ (بسيط هنا)
-        if ($this->model->balance < $share) {
-            throw new \Exception("Insufficient funds in parent for its share");
-        }
-
-        // سحب من الحساب الرئيسي
-        $this->model->balance -= $share;
-        $this->model->save();
-
-        // وسحب من كل طفل
-        foreach ($this->children as $child) {
-            $child->withdraw($share);
-        }
-    }
-
-    public function deposit(float $amount): void
-    {
-        $count = count($this->children) + 1;
-        $share = $amount / $count;
-
-        $this->model->balance += $share;
-        $this->model->save();
-
-        foreach ($this->children as $child) {
-            $child->deposit($share);
-        }
+        return $this->model->id;
     }
 
     public function getBalance(): float
     {
-        $total = (float)$this->model->balance;
+        if (empty($this->children)) {
+            return 0;
+        }
+        $total = 0;
         foreach ($this->children as $child) {
             $total += $child->getBalance();
         }
         return $total;
     }
-
-    public function getId(): int
+    public function withdraw(float $amount): void
     {
-        return $this->model->id;
+        if (!$this->model->state->canWithdraw()) {
+            throw new \Exception("غير مسموح بالسحب - الحالة: {$this->model->state->getName()}");
+        }
+
+        $remaining = $amount;
+
+        foreach ($this->children as $child) {
+            $childBalance = $child->getBalance();
+
+            $take = min($childBalance, $remaining);
+
+            if ($take > 0) {
+                $child->withdraw($take);
+                $remaining -= $take;
+            }
+
+            if ($remaining <= 0) break;
+        }
+
+     //   if ($remaining > 0) {
+       //     throw new \Exception("Composite account {$this->getId()} has insufficient total funds");
+      //  }
+    }
+
+    public function deposit(float $amount): void
+    {
+        if (!$this->model->state->canDeposit()) {
+            throw new \Exception("غير مسموح بالإيداع - الحالة: {$this->model->state->getName()}");
+        }
+
+        if (empty($this->children))
+            throw new \Exception("Composite account has no children to deposit into");
+
+        $n = count($this->children);
+        $each = floor(($amount / $n) * 100) / 100; // exact to cents
+        $remaining = $amount;
+
+        foreach ($this->children as $i => $child) {
+            $give = ($i === $n - 1) ? $remaining : $each;
+            $child->deposit($give);
+            $remaining -= $give;
+        }
+    }
+
+
+    public function transfer(AccountInterface $target, float $amount): void
+    {
+        DB::transaction(function () use ($target, $amount) {
+            $this->withdraw($amount);
+            $target->deposit($amount);
+        });
+    }
+
+    public function addChild(AccountInterface $child): void
+    {
+        $childModel = $child->getModel();
+        $childModel->parent_id = $this->model->id;
+        $childModel->save();
+
+        $this->children[] = $child;
+    }
+    public function getModel(): Account
+    {
+        return $this->model;
+    }
+
+    public function getChildren(): array
+    {
+        return $this->children;
+    }
+
+    public function removeChild(int $childId): void
+    {
+        $childModel = Account::find($childId);
+        if (!$childModel) {
+            throw new \Exception("Child account not found");
+        }
+
+        if ($childModel->parent_id !== $this->model->id) {
+            throw new \Exception("This child does not belong to this composite account");
+        }
+
+        $childModel->parent_id = null;
+        $childModel->save();
+
+        foreach ($this->children as $i => $child) {
+            if ($child->getId() === $childId) {
+                unset($this->children[$i]);
+                $this->children = array_values($this->children);
+                return;
+            }
+        }
+    }
+
+    public function getChild(int $childId): ?AccountInterface
+    {
+        foreach ($this->children as $child) {
+            if ($child->getId() === $childId) {
+                return $child;
+            }
+        }
+        return null;
     }
 }

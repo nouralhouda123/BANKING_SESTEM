@@ -14,16 +14,12 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->foreignId('government_agencie_id')
-                ->nullable()
-                ->constrained('government_agencies')
-                ->onDelete('cascade');
-         //   $table->string('last_name')->nullable();
             $table->string('email')->nullable()->nullable()->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('phone')->nullable()->unique();
             $table->string('national_id')->nullable()->unique();
+                        $table->string('fcm_token')->nullable()->unique();
             $table->rememberToken();
             $table->timestamps();
         });

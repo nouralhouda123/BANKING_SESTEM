@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\DTOs\LoginDTO;
 use App\Http\Requests\AuthadminRequest;
+use App\Http\Requests\EmployeeRequest;
 use App\Mail\EmailVerificationMail;
 use App\Models\EmailVerification;
 use App\Models\User;
@@ -24,20 +25,20 @@ class UserService
     {
         $this->repository = $repository;
     }
+
     public function login(AuthadminRequest $request)
     {
         $email = $request->email;
         $key = 'login-attempts:' . $email;
-
         $user = $this->repository->getByEmail($email);
-if($user)
-        if (!$user || !Auth::attempt($request->only(['email', 'password']))) {
-            return [
-                'user' => null,
-                'message' => 'Invalid credentials',
-                'code' => 401
-            ];
-        }
+        if ($user)
+            if (!$user || !Auth::attempt($request->only(['email', 'password']))) {
+                return [
+                    'user' => null,
+                    'message' => 'Invalid credentials',
+                    'code' => 401
+                ];
+            }
         if (is_null($user->email_verified_at)) {
             return [
                 'user' => null,
@@ -59,17 +60,21 @@ if($user)
             'code' => 200
         ];
     }
-    public function logout(){
-        $user=Auth::user();
-        if(! is_null($user)){
+
+    public function logout()
+    {
+        $user = Auth::user();
+        if (!is_null($user)) {
             $user->delete();
-            $message='user Logged out  Successfully';
-            $code=200;}
-        else{
-            $message='invaild token';
-            $code=404;}
+            $message = 'user Logged out  Successfully';
+            $code = 200;
+        } else {
+            $message = 'invaild token';
+            $code = 404;
+        }
         return (['user' => $user, 'message' => $message, 'code' => $code]);
     }
+
     private function appendRolesAndPermission($user)
     {
 
@@ -88,6 +93,7 @@ if($user)
         $user['permissions'] = $permissions;
         return $user;
     }
+
     /////////////////////
     public function register(array $data)
     {
@@ -102,7 +108,7 @@ if($user)
                 'password' => Hash::make($data['password']), // استخدام Hash::make أفضل من bcrypt
             ]);
 
-            $employeeRole = $this->repository->getByName('citizen');
+            $employeeRole = $this->repository->getByName('client');
             $user->assignRole($employeeRole);
             if ($user->has('permissions')) {
                 //  $employeeRole->syncPermissions($request->permissions);
@@ -117,7 +123,7 @@ if($user)
 
             EmailVerification::create([
                 'user_id' => $user->id,
-                'code' => (string) $verificationCode,
+                'code' => (string)$verificationCode,
                 'expires_at' => now()->addMinutes(10), // رمز التحقق صالح لمدة 10 دقائق
             ]);
 
@@ -175,6 +181,131 @@ if($user)
             // يمكنك تسجيل الخطأ هنا
             throw new Exception('Email verification failed.');
         }
+    }
+
+    public function getAllEmployee( )
+    {
+        $user=$this->repository->getAllEmployees();
+        //  $employeeRole = $this->repository->getByName('client');
+        $message = 'success';
+        $code = 200;
+
+        return [
+            'user' => $user,
+            'message' => $message,
+            'code' => $code
+        ];
+
+    }
+
+
+
+    public function getAlldirector( )
+    {
+        $user=$this->repository->getallmanagers();
+        //  $employeeRole = $this->repository->getByName('client');
+        $message = 'success';
+        $code = 200;
+
+        return [
+            'user' => $user,
+            'message' => $message,
+            'code' => $code
+        ];
+
+}
+
+
+
+
+    public function getallClient( )
+    {
+        $user=$this->repository->getByName('client');
+        return $user;
+
+    }
+
+    public function getusers( )
+    {
+        $client = $this->repository->getAllusers();
+      //  $employeeRole = $this->repository->getByName('client');
+        $message = 'success';
+        $code = 200;
+
+        return [
+            'user' => $client,
+            'message' => $message,
+            'code' => $code
+        ];
+    }
+
+//
+    public function add_client(EmployeeRequest $request)
+    {
+        //if (optional(Auth::user())->hasRole('client')) {
+            $client = $this->repository->create($request->all());
+            $employeeRole = $this->repository->getByName('client');
+            $client->assignRole($employeeRole);
+            if ($request->has('permissions')) {
+                $client->syncPermissions($request->permissions);
+            }
+            $client->load('permissions', 'roles');
+            $client = $this->repository->getById($client->id);
+            $client = $this->appendRolesAndPermission($client);
+            $message = 'Employee added successfully';
+            $code = 200;
+
+        return [
+            'user' => $client,
+            'message' => $message,
+            'code' => $code
+        ];
+    }
+//اضافة مدير
+    public function add_director(EmployeeRequest $request)
+    {
+       // if (optional(Auth::user())->hasRole('director')) {
+            $director = $this->repository->create($request->all());
+            $employeeRole = $this->repository->getByName('director');
+            $director->assignRole($employeeRole);
+            if ($request->has('permissions')) {
+                $director->syncPermissions($request->permissions);
+            }
+            $director->load('permissions', 'roles');
+            $director = $this->repository->getById($director->id);
+            $director = $this->appendRolesAndPermission($director);
+            $message = 'i added successfully';
+            $code = 200;
+
+
+
+
+        return [
+            'user' => $director,
+            'message' => $message,
+            'code' => $code
+        ];
+    }
+    //اضافة موظف
+    public function add_employee(EmployeeRequest $request)
+    {
+            $employee = $this->repository->create($request->all());
+            $employeeRole = $this->repository->getByName('teller');
+            $employee->assignRole($employeeRole);
+            if ($request->has('permissions')) {
+                $employee->syncPermissions($request->permissions);
+            }
+            $employee->load('permissions', 'roles');
+            $employee = $this->repository->getById($employee->id);
+            $employee = $this->appendRolesAndPermission($employee);
+            $message = 'Employee added successfully';
+            $code = 200;
+
+        return [
+            'user' => $employee,
+            'message' => $message,
+            'code' => $code
+        ];
     }
 
 }

@@ -8,17 +8,17 @@ use Spatie\Permission\Models\Role;
 
 class userRepository
 {
-    public function getByEmail(string $email):?User
+    public function getByEmail(string $email): ?User
     {
         return User::where('email', $email)->first();
     }
+
     public function create(array $data)
     {
         return User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'government_agencie_id' => $data['government_agencie_id'],
             'phone' => $data['phone'],
             'national_id' => $data['national_id'],
             'email_verified_at' => now(),
@@ -26,6 +26,20 @@ class userRepository
     }
 
 
+    public function getAllusers()
+    {
+        return User::role('client')->get();
+    }
+    public function getAllEmployees()
+    {
+        return User::role('teller')->get();
+    }
+
+
+    public function getallmanagers()
+    {
+        return User::role('director')->get();
+    }
 
     public function getByName($name)
     {

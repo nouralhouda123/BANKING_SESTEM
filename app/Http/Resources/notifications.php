@@ -17,14 +17,9 @@ class notifications extends JsonResource
         return [
             'id'              => $this->id,
             'type'            => $this->type,
-            'notifiable_type' => $this->notifiable_type,
-            'notifiable_id'   => $this->notifiable_id,
             'title'           => $this->title,
-            //'body'            => $this->body,
-            'data'            => $this->data,  // JSON decode
+            'data'            => $this->data,
             'read_at' => $this->read_at ? $this->read_at->format('Y-m-d') : null,
-           // 'created_at'      => $this->created_at,
-           // 'updated_at'      => $this->updated_at,
         ];
     }
 }

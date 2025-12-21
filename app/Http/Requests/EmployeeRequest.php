@@ -26,7 +26,6 @@ class EmployeeRequest extends FormRequest
             'email'           => 'required|email|unique:users,email',
             'password'        => 'required|string|min:6',
 
-            'government_agencie_id' => 'required|exists:government_agencies,id',
 
             // رقم الجوال: يبدأ بـ 09 وطوله 10 أرقام
             'phone' => [

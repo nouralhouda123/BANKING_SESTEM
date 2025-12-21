@@ -1,27 +1,30 @@
 <?php
-
 namespace App\Transactions\Handlers;
 
 use App\Models\Transaction;
 
 abstract class BaseHandler
 {
-    protected $next;
+    protected ?BaseHandler $next = null;
 
-    // ربط الهاندلر التالي
     public function setNext(BaseHandler $handler): BaseHandler
     {
         $this->next = $handler;
         return $handler;
     }
 
-    // تنفيذ الهاندلر
     public function handle(Transaction $transaction)
     {
-        // تنفيذ الفحص الخاص بهذا الهاندلر
-        $this->check($transaction);
+        if ($transaction->status === 'rejected') {
+            return $transaction;
+        }
 
-        // إذا يوجد هاندلر بعده → أرسل له
+        $continue = $this->check($transaction);
+
+        if ($continue === false) {
+            return $transaction;
+        }
+
         if ($this->next) {
             return $this->next->handle($transaction);
         }
@@ -29,6 +32,14 @@ abstract class BaseHandler
         return $transaction;
     }
 
-    // كل هاندلر يجب أن يكتب check()
     abstract protected function check(Transaction $transaction);
+
+    protected function reject(Transaction $transaction, string $reason): bool
+    {
+        $transaction->status = 'rejected';
+        $transaction->rejection_reason = $reason;
+        $transaction->save();
+
+        return false;
+    }
 }
