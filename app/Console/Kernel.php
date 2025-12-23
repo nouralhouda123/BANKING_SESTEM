@@ -13,6 +13,9 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('app:process-loan-payments')->everyMinute();
+
+        $schedule->command('interest:apply')->everyMunth();
+//monthlyphp artisan interest:apply
     }
 
     /**

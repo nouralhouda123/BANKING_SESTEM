@@ -4,6 +4,8 @@ namespace App\Repositories;
 
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
+use App\Services\TransactionLogger;
+
 
 class transcationRepository extends \App\Repositories\AccountRepository
 {
@@ -43,15 +45,39 @@ class transcationRepository extends \App\Repositories\AccountRepository
         return Transaction::where('user_id', $userId)->get(); // ⬅️ أضف get()
     }
     // ⬇️ عدل هذه الدالة لتأخذ userId كباراميتر
+//    public function createTransaction(array $data, int $userId)
+//    {
+//        return Transaction::create([
+//            'from_account_id' => $data['from_account_id'] ?? null,
+//            'to_account_id' => $data['to_account_id'] ?? null,
+//            'amount' => $data['amount'],
+//            'user_id' => $userId, // ⬅️ من الباراميتر
+//            'type' => $data['type'],
+//        ]);
+//    }
+
+
     public function createTransaction(array $data, int $userId)
     {
-        return Transaction::create([
+        $transaction = Transaction::create([
             'from_account_id' => $data['from_account_id'] ?? null,
-            'to_account_id' => $data['to_account_id'] ?? null,
-            'amount' => $data['amount'],
-            'user_id' => $userId, // ⬅️ من الباراميتر
-            'type' => $data['type'],
+            'to_account_id'   => $data['to_account_id'] ?? null,
+            'amount'          => $data['amount'],
+            'user_id'         => $userId,
+            'type'            => $data['type'],
         ]);
+
+        // 🔹 AUDIT LOG: transaction created
+        TransactionLogger::log(
+            $transaction,
+            'created',
+            'Transaction created by user',
+            null,
+            $transaction->toArray()
+        );
+
+        return $transaction;
     }
+
 
 }

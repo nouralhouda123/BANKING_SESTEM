@@ -17,8 +17,9 @@ return new class extends Migration
             $table->unsignedBigInteger('from_account_id')->nullable();
             $table->unsignedBigInteger('to_account_id')->nullable();
             $table->decimal('amount', 12, 2);
-            $table->enum('frequency', ['daily','weekly','monthly'])->nullable()->after('scheduled_at');
-            $table->enum('type', ['deposit', 'withdraw', 'transfer']);
+            $table->enum('frequency', ['daily','weekly','monthly'])->nullable();
+
+            $table->enum('type', ['deposit', 'withdraw', 'transfer','interest']);
             $table->string('rejection_reason')->nullable();
             $table->enum('status', [
                 'pending',

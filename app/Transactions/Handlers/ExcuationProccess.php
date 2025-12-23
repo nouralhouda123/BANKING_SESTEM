@@ -1,5 +1,6 @@
 <?php
 namespace App\Transactions\Handlers;
+use App\Services\TransactionLogger;
 
 use App\Models\Transaction;
 use App\Repositories\AccountRepository;
@@ -21,7 +22,8 @@ class ExcuationProccess extends BaseHandler
 
     protected function check(Transaction $transaction): bool
     {
-        if ($transaction->status !== 'approved') return true;
+        if ($transaction->status !== 'approved'&& $transaction->type !== 'interest') return true;
+
 
         try {
             DB::transaction(function () use ($transaction) {
@@ -29,15 +31,32 @@ class ExcuationProccess extends BaseHandler
                     'deposit'  => $this->deposit($transaction),
                     'withdraw' => $this->withdraw($transaction),
                     'transfer' => $this->transfer($transaction),
+                    'interest' => $this->applyInterest($transaction), // ← أضيفي هذا
                     default    => throw new \LogicException("Invalid transaction type"),
                 };
 
                 $transaction->status = 'completed';
                 $transaction->save();
+                ////الاضافة لل
+                // 🔹 AUDIT LOG — execution success
+                TransactionLogger::log(
+                    $transaction,
+                    'executed',
+                    'Transaction executed successfully',
+                    ['previous_status' => 'approved'],
+                    ['current_status' => 'completed']
+                );
             });
 
             return true;
         } catch (\Throwable $e) {
+            // 🔹 AUDIT LOG — execution failed
+            TransactionLogger::log(
+                $transaction,
+                'failed',
+                $e->getMessage()
+            );
+
             return $this->reject($transaction, $e->getMessage());
         }
     }
@@ -100,4 +119,25 @@ class ExcuationProccess extends BaseHandler
     {
         $account->getModel()->save();
     }
+
+
+
+
+
+
+
+
+    private function applyInterest(Transaction $transaction): void
+    {
+        $to = $this->repo->find($transaction->to_account_id);
+
+        if (!$to) {
+            throw new \LogicException("Target account not found for interest");
+        }
+
+        // الفائدة تعامل كإيداع
+        $to->balance += $transaction->amount;
+        $to->save();
+    }
+
 }

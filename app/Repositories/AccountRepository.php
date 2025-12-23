@@ -15,7 +15,7 @@ class AccountRepository
         return Account::where('id',$userId)->first();
     }
 
-    public function find(int $userId): ?Account
+    public function find( $userId)
     {
         $user = Auth::user();
         $userId=$user->id;

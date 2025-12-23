@@ -11,7 +11,7 @@ class ValidationHandler extends BaseHandler
             return $this->reject($transaction, "Amount must be greater than zero");
         }
 
-        if (!in_array($transaction->type, ['withdraw', 'deposit', 'transfer'])) {
+        if (!in_array($transaction->type, ['withdraw', 'deposit', 'transfer', 'interest'])) {
             return $this->reject($transaction, "Invalid transaction type");
         }
 

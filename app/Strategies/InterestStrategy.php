@@ -3,10 +3,9 @@
 
 namespace App\Strategies;
 
-
 use App\Models\Account;
 
 interface InterestStrategy
 {
-    public function calculate(Account $account);
+    public function calculate(Account $account): float;
 }

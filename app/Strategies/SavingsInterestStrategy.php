@@ -1,0 +1,16 @@
+<?php
+
+
+namespace App\Strategies;
+
+use App\Models\Account;
+
+
+class SavingsInterestStrategy implements InterestStrategy
+{
+    public function calculate(Account $account): float
+    {
+        return $account->balance * 0.85;
+    }
+}
+
